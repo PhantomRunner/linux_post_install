@@ -1,0 +1,194 @@
+#!/bin/bash
+
+echo "Welcome back, srgwx"
+
+# -------------------------
+# Detect package manager
+# -------------------------
+if command -v apt >/dev/null 2>&1; then
+    PM="apt"
+elif command -v pacman >/dev/null 2>&1; then
+    PM="pacman"
+elif command -v dnf >/dev/null 2>&1; then
+    PM="dnf"
+else
+    echo "Unsupported distro"
+    exit 1
+fi
+
+echo "Detected: $PM"
+
+failed_list=()
+
+# -------------------------
+# Package mappings
+# -------------------------
+
+if [ "$PM" = "apt" ]; then
+    packages=(
+        blender
+        btop
+        docker.io
+        docker-compose
+        fastfetch
+        fish
+        kdenlive
+        keepassxc
+        libreoffice
+        obs-studio
+        okular
+        qbittorrent
+        steam-installer
+        telegram-desktop
+        unzip
+        yt-dlp
+        discord
+        obsidian
+        bruno
+        upscayl
+    )
+
+elif [ "$PM" = "pacman" ]; then
+    packages=(
+        blender
+        btop
+        docker
+        docker-compose
+        fastfetch
+        fish
+        kdenlive
+        keepassxc
+        libreoffice-fresh
+        obs-studio
+        okular
+        qbittorrent
+        steam
+        telegram-desktop
+        unzip
+        yt-dlp
+        discord
+        obsidian
+        bruno
+        upscayl
+    )
+
+elif [ "$PM" = "dnf" ]; then
+    packages=(
+        blender
+        btop
+        docker
+        docker-compose
+        fastfetch
+        fish
+        kdenlive
+        keepassxc
+        libreoffice
+        obs-studio
+        okular
+        qbittorrent
+        steam
+        telegram-desktop
+        unzip
+        yt-dlp
+        discord
+        obsidian
+        bruno
+        upscayl
+    )
+fi
+
+# -------------------------
+# Install function
+# -------------------------
+install_packages() {
+    for pkg in "${packages[@]}"; do
+        echo "Installing $pkg..."
+
+        case $PM in
+            apt)
+                sudo apt-get install -y "$pkg"
+                ;;
+            pacman)
+                sudo pacman -S --noconfirm "$pkg"
+                ;;
+            dnf)
+                sudo dnf install -y "$pkg"
+                ;;
+        esac
+
+        if [ $? -ne 0 ]; then
+            echo "FAILED: $pkg"
+            failed_list+=("$pkg")
+        fi
+    done
+}
+
+# -------------------------
+# Setup Fish shell
+# -------------------------
+setup_fish() {
+    if command -v fish >/dev/null 2>&1; then
+        echo "Configuring Fish shell..."
+
+        FISH_PATH=$(which fish)
+
+        # add fish to allowed shells if not present
+        if ! grep -q "$FISH_PATH" /etc/shells; then
+            echo "$FISH_PATH" | sudo tee -a /etc/shells
+        fi
+
+        # set as default shell
+        chsh -s "$FISH_PATH"
+
+        echo "Fish set as default shell (log out to apply)"
+    else
+        echo "Fish not installed"
+    fi
+}
+
+# -------------------------
+# Update system
+# -------------------------
+case $PM in
+    apt)
+        sudo apt-get update
+        ;;
+    pacman)
+        sudo pacman -Sy
+        ;;
+    dnf)
+        sudo dnf check-update
+        ;;
+esac
+
+# -------------------------
+# Install packages
+# -------------------------
+install_packages
+
+# -------------------------
+# Docker setup
+# -------------------------
+if command -v docker >/dev/null 2>&1; then
+    echo "Enabling Docker..."
+    sudo systemctl enable docker
+    sudo systemctl start docker
+fi
+
+# -------------------------
+# Fish setup
+# -------------------------
+setup_fish
+
+# -------------------------
+# Result
+# -------------------------
+echo "-------------------------"
+if [ ${#failed_list[@]} -ne 0 ]; then
+    echo "Failed packages (install manually):"
+    for f in "${failed_list[@]}"; do
+        echo "- $f"
+    done
+else
+    echo "All packages installed successfully"
+fi
