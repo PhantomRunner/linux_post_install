@@ -1,5 +1,7 @@
 #!/bin/bash
+
 clear
+
 LOG_FILE="install_failed.log"
 > "$LOG_FILE"
 
@@ -26,118 +28,57 @@ failed_list=()
 # -------------------------
 # Package mappings
 # -------------------------
-
-if [ "$PM" = "apt" ]; then
-    packages=(
-        blender
-        btop
-        docker.io
-        docker-compose
-        fastfetch
-        fish
-        kdenlive
-        keepassxc
-        libreoffice
-        obs-studio
-        okular
-        qbittorrent
-        steam-installer
-        telegram-desktop
-        unzip
-        yt-dlp
-        discord
-        obsidian
-        bruno
-        upscayl
-    )
-
-elif [ "$PM" = "pacman" ]; then
-    packages=(
-        blender
-        btop
-        docker
-        docker-compose
-        fastfetch
-        fish
-        kdenlive
-        keepassxc
-        libreoffice-fresh
-        obs-studio
-        okular
-        qbittorrent
-        steam
-        telegram-desktop
-        unzip
-        yt-dlp
-        discord
-        obsidian
-        bruno
-        upscayl
-    )
-
-elif [ "$PM" = "dnf" ]; then
-    packages=(
-        blender
-        btop
-        docker
-        docker-compose
-        fastfetch
-        fish
-        kdenlive
-        keepassxc
-        libreoffice
-        obs-studio
-        okular
-        qbittorrent
-        steam
-        telegram-desktop
-        unzip
-        yt-dlp
-        discord
-        obsidian
-        bruno
-        upscayl
-    )
-fi
+case "$PM" in
+    apt)
+        packages=(
+            blender btop docker.io docker-compose fastfetch fish
+            kdenlive keepassxc libreoffice obs-studio okular
+            qbittorrent steam-installer telegram-desktop unzip
+            yt-dlp discord obsidian bruno upscayl
+        )
+        ;;
+    pacman)
+        packages=(
+            blender btop docker docker-compose fastfetch fish
+            kdenlive keepassxc libreoffice-fresh obs-studio okular
+            qbittorrent steam telegram-desktop unzip
+            yt-dlp discord obsidian bruno upscayl
+        )
+        ;;
+    dnf)
+        packages=(
+            blender btop docker docker-compose fastfetch fish
+            kdenlive keepassxc libreoffice obs-studio okular
+            qbittorrent steam telegram-desktop unzip
+            yt-dlp discord obsidian bruno upscayl
+        )
+        ;;
+esac
 
 # -------------------------
-# Install function
+# Helpers
 # -------------------------
-
 is_installed() {
-    case $PM in
-        apt)
-            dpkg -s "$1" >/dev/null 2>&1
-            ;;
-        pacman)
-            pacman -Qi "$1" >/dev/null 2>&1
-            ;;
-        dnf)
-            rpm -q "$1" >/dev/null 2>&1
-            ;;
+    case "$PM" in
+        apt) dpkg -s "$1" >/dev/null 2>&1 ;;
+        pacman) pacman -Qi "$1" >/dev/null 2>&1 ;;
+        dnf) rpm -q "$1" >/dev/null 2>&1 ;;
     esac
 }
 
 install_packages() {
     for pkg in "${packages[@]}"; do
-
         if is_installed "$pkg"; then
-            echo "SKIPPED (already installed): $pkg"
+            echo "SKIPPED: $pkg"
             continue
         fi
 
         echo "Installing $pkg..."
 
-        case $PM in
-            apt)
-                sudo apt-get install -y "$pkg"
-                ;;
-            pacman)
-                sudo pacman -S --noconfirm "$pkg"
-                ;;
-            dnf)
-                sudo dnf install -y "$pkg"
-                ;;
+        case "$PM" in
+            apt) sudo apt-get install -y "$pkg" ;;
+            pacman) sudo pacman -S --noconfirm "$pkg" ;;
+            dnf) sudo dnf install -y "$pkg" ;;
         esac
 
         if [ $? -ne 0 ]; then
@@ -151,25 +92,27 @@ install_packages() {
 # Setup Fish shell
 # -------------------------
 setup_fish() {
-    if command -v fish >/dev/null 2>&1; then
-        echo "Configuring Fish shell..."
-
-        FISH_PATH=$(which fish)
-
-        if ! grep -q "$FISH_PATH" /etc/shells; then
-            echo "$FISH_PATH" | sudo tee -a /etc/shells
-        fi
-
-        CURRENT_SHELL=$(getent passwd "$USER" | cut -d: -f7)
-
-        if [ "$CURRENT_SHELL" != "$FISH_PATH" ]; then
-            chsh -s "$FISH_PATH"
-            echo "Fish set as default shell (log out to apply)"
-        else
-            echo "Fish already default shell"
-        fi
-    else
+    if ! command -v fish >/dev/null 2>&1; then
         echo "Fish not installed"
+        return
+    fi
+
+    echo "Configuring Fish shell..."
+
+    FISH_PATH="$(which fish)"
+
+    # Add to /etc/shells if missing
+    if ! grep -q "$FISH_PATH" /etc/shells; then
+        echo "$FISH_PATH" | sudo tee -a /etc/shells >/dev/null
+    fi
+
+    CURRENT_SHELL="$(getent passwd "$USER" | cut -d: -f7)"
+
+    if [ "$CURRENT_SHELL" != "$FISH_PATH" ]; then
+        chsh -s "$FISH_PATH"
+        echo "Fish set as default shell (log out to apply)"
+    else
+        echo "Fish already default shell"
     fi
 }
 
@@ -183,22 +126,27 @@ setup_fastfetch() {
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
     mkdir -p "$CONFIG_DIR"
-    if [ -d "$SCRIPT_DIR/fastfetch" ]; then
-    for file in "$SCRIPT_DIR/fastfetch/"*; do
-        filename=$(basename "$file")
 
-        # only copy if file doesn't exist or is different
-        if [ ! -f "$CONFIG_DIR/$filename" ] || ! cmp -s "$file" "$CONFIG_DIR/$filename"; then
-            cp "$file" "$CONFIG_DIR/"
+    if [ ! -d "$SCRIPT_DIR/fastfetch" ]; then
+        echo "Fastfetch config folder not found, skipping"
+        return
+    fi
+
+    shopt -s nullglob
+
+    for file in "$SCRIPT_DIR/fastfetch/"*; do
+        filename="$(basename "$file")"
+        target="$CONFIG_DIR/$filename"
+
+        if [ ! -f "$target" ] || ! cmp -s "$file" "$target"; then
+            cp "$file" "$target"
             echo "Updated: $filename"
         else
             echo "Unchanged: $filename"
         fi
     done
-    else
-    echo "Fastfetch config folder not found, skipping"
-fi
 
+    # Fix logo name
     if [ -f "$CONFIG_DIR/logo.text" ] && [ ! -f "$CONFIG_DIR/logo.txt" ]; then
         mv "$CONFIG_DIR/logo.text" "$CONFIG_DIR/logo.txt"
     fi
@@ -209,16 +157,12 @@ fi
 # -------------------------
 # Update system
 # -------------------------
-case $PM in
-    apt)
-        sudo apt-get update
-        ;;
-    pacman)
-        sudo pacman -Syu --noconfirm
-        ;;
-    dnf)
-        sudo dnf check-update
-        ;;
+echo "Updating system..."
+
+case "$PM" in
+    apt) sudo apt-get update ;;
+    pacman) sudo pacman -Syu --noconfirm ;;
+    dnf) sudo dnf check-update ;;
 esac
 
 # -------------------------
@@ -229,7 +173,11 @@ install_packages
 # -------------------------
 # Docker setup
 # -------------------------
-if command -v docker >/dev/null 2>&1; then
+setup_docker() {
+    if ! command -v docker >/dev/null 2>&1; then
+        return
+    fi
+
     echo "Checking Docker..."
 
     if ! systemctl is-enabled docker >/dev/null 2>&1; then
@@ -239,22 +187,21 @@ if command -v docker >/dev/null 2>&1; then
     if ! systemctl is-active docker >/dev/null 2>&1; then
         sudo systemctl start docker
     fi
-fi
+}
+
+setup_docker
 
 # -------------------------
-# Fish setup
+# Other setups
 # -------------------------
 setup_fish
-
-# -------------------------
-# Fastfetch setup
-# -------------------------
 setup_fastfetch
 
 # -------------------------
 # Result
 # -------------------------
 echo "-------------------------"
+
 if [ ${#failed_list[@]} -ne 0 ]; then
     echo "Failed packages (install manually):"
     for f in "${failed_list[@]}"; do
@@ -263,4 +210,3 @@ if [ ${#failed_list[@]} -ne 0 ]; then
 else
     echo "All packages installed successfully"
 fi
-
