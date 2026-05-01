@@ -146,6 +146,28 @@ setup_fish() {
     fi
 }
 
+
+# -------------------------
+# Setup Fastfetch config
+# -------------------------
+setup_fastfetch() {
+    echo "Setting up Fastfetch config..."
+
+    CONFIG_DIR="$HOME/.config/fastfetch"
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+    mkdir -p "$CONFIG_DIR"
+
+    cp -r "$SCRIPT_DIR/fastfetch/"* "$CONFIG_DIR/"
+
+    # fix logo filename mismatch if needed
+    if [ -f "$CONFIG_DIR/logo.text" ]; then
+        mv "$CONFIG_DIR/logo.text" "$CONFIG_DIR/logo.txt"
+    fi
+
+    echo "Fastfetch configured"
+}
+
 # -------------------------
 # Update system
 # -------------------------
