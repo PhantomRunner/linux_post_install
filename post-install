@@ -1,4 +1,6 @@
 #!/bin/bash
+clear
+LOG_FILE="install_failed.log"
 
 echo "Welcome back, srgwx"
 
@@ -117,7 +119,7 @@ install_packages() {
         esac
 
         if [ $? -ne 0 ]; then
-            echo "FAILED: $pkg"
+            echo "FAILED: $pkg" | tee -a "$LOG_FILE"
             failed_list+=("$pkg")
         fi
     done
@@ -201,6 +203,11 @@ fi
 # Fish setup
 # -------------------------
 setup_fish
+
+# -------------------------
+# Fastfetch setup
+# -------------------------
+setup_fastfetch
 
 # -------------------------
 # Result
