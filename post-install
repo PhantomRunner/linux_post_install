@@ -28,33 +28,14 @@ failed_list=()
 # -------------------------
 # Package mappings
 # -------------------------
-case "$PM" in
-    apt)
-        packages=(
-            blender btop docker.io docker-compose fastfetch fish
-            kdenlive keepassxc libreoffice obs-studio okular
-            qbittorrent steam-installer telegram-desktop unzip
-            yt-dlp discord obsidian bruno upscayl
-        )
-        ;;
-    pacman)
-        packages=(
-            blender btop docker docker-compose fastfetch fish
-            kdenlive keepassxc libreoffice-fresh obs-studio okular
-            qbittorrent steam telegram-desktop unzip
-            yt-dlp discord obsidian bruno upscayl
-        )
-        ;;
-    dnf)
-        packages=(
-            blender btop docker docker-compose fastfetch fish
-            kdenlive keepassxc libreoffice obs-studio okular
-            qbittorrent steam telegram-desktop unzip
-            yt-dlp discord obsidian bruno upscayl
-        )
-        ;;
-esac
+PACKAGE_FILE="packages/$PM.txt"
 
+if [ ! -f "$PACKAGE_FILE" ]; then
+    echo "Package list not found: $PACKAGE_FILE"
+    exit 1
+fi
+
+mapfile -t packages < "$PACKAGE_FILE"
 # -------------------------
 # Helpers
 # -------------------------
